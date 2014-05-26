@@ -42,26 +42,26 @@
 				$package = array();
 				
 				if(  $this->enableTimeout == true ){
-					$package[] = array("signed" => time() );
+					$package["signed"] = time() ;
 				}
 				
 				if(  $this->enableKeys ){
-					$package[] = array("pubKey" => $this->publicKey );
+					$package["pubKey"] = $this->publicKey ;
 				}
 				
 				if( $this->enableTokens == true ){
-					$package[] = array("token" => $this->token );
+					$package["token"] = $this->token ;
 				}
 				
 				if( $this->enableEncryption == true ){
-					$package[] = array("payload" => base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $this->key, $input, MCRYPT_MODE_ECB, $this->iv)) );
+					$package["payload"] = base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $this->key, $input, MCRYPT_MODE_ECB, $this->iv)) ;
 				}else{
-					$package[] = array("payload" => $input );
+					$package["payload"] = $input ;
 				}
 				
 				//this should be done last
 				if(  $this->enableKeys ){
-					$package[] = array("signature" => hash_hmac('ripemd160',$package,$this->privateKey) );
+					$package["signature"] = hash_hmac('ripemd160',$package,$this->privateKey);
 				}
 				
 				return $package;
@@ -90,9 +90,15 @@
 					$difference = ($currentTime - $signed);
 					
 					if( $difference >= 0 && $difference < $this->timeout ){
+						if( $difference < 0 ){
+							//packet from the future?
+						}
+						
+					
+					
 						$withinLimit = 1;
 					}else{
-						throw new Exception('package time outside time limit');
+						//throw new Exception('package time outside time limit');
 					}
 				}else{
 					$withinLimit = 1;
@@ -130,6 +136,8 @@
 						$tokenOK = 0;
 					}
 				
+				}else{
+					$tokenOK = 1;
 				}
 				
 				if( $this->enableEncryption == true){
@@ -137,7 +145,7 @@
 						$decrypted = 1;
 					}else{
 						$decrypted = 0;
-						throw new Exception('prior tests failed. Decryption disabled');
+						//throw new Exception('prior tests failed. Decryption disabled');
 					}
 				}
 				
@@ -147,6 +155,8 @@
 					}else{
 						$payload = $input["payload"];
 					}
+				}else{
+					//could set the payload to a message
 				}
 				
 				return $payload;

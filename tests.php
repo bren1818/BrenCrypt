@@ -1,5 +1,8 @@
 <?php
 	require_once "BrenCrypt.php";
+	function pa( $item ){
+		echo "<pre>".print_r($item,true)."</pre>";
+	}
 	
 	echo "<h1>Init Tests</h1>";
 	echo "<h3>Simple Encryption</h3>";
@@ -24,5 +27,30 @@
 	$bCrypt->setKey($key);
 	echo "<p>With <b>correct</b> key: ".$bCrypt->decrypt( $encrypted )."</p>";
 
-
+	echo "<hr />";
+	echo "<h1>Timeout test</h1>";
+	echo "<p>Encrypting: ".$msg." with time period of 5 seconds</p>";
+	
+	$bCrypt->setEnableTimeout();
+	$bCrypt->setTimeout(5); //5 seconds
+	
+	$encrypted = $bCrypt->encrypt( $msg );
+	echo "<p>Payload:</p>";
+	pa( $encrypted );
+	
+	echo "<p>Test Decrypt</p>";
+	$decrypted = $bCrypt->decrypt( $encrypted );
+	echo "<p>Payload: ".$decrypted."</p>";
+	echo "<p>Faking Latency of 5s [curtime = ".time()."] [packet time = ".($encrypted["signed"] - 5 )." </p>";
+	$encrypted["signed"] = ($encrypted["signed"] - 5 );
+	pa( $encrypted );
+	
+	$decrypted = $bCrypt->decrypt( $encrypted );
+	echo "<p>Payload: ".$decrypted."</p>";
+	
+	echo "<hr />";
+	
+	
+	
+	
 ?>
