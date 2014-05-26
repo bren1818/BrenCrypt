@@ -11,7 +11,7 @@
 		private $publicKey;
 		private $privateKey;
 		private $enableTokens;
-		private $token;
+		//private $token;
 		
 		private $connection;
 		private $throwExceptions;
@@ -50,7 +50,17 @@
 				}
 				
 				if( $this->enableTokens == true ){
-					$package["token"] = $this->token ;
+					$token = new BToken($this->connection);
+					$token->setUsed(0);
+					$token->setExpiry( time() + 300 ); // 5 mins from now
+					if( $token->save() > 0 ){
+						$this->token = $token->getToken();
+						$package["token"] = $token->getToken() ;
+						
+					}else{
+						//error cannot generate token
+					}
+					
 				}
 				
 				if( $this->enableEncryption == true ){
@@ -125,14 +135,14 @@
 				
 				if( $this->enableTokens == true ){
 					$token =  $input["token"];
-					//look up if token is used
-					$tokenAvailable = 0;
 					//do lookup -------------------------------------------
+					$tokenCheck = new BToken($this->connection);
+					$tokenCheck = $tokenCheck->load( $token );
 					
-					if( $tokenAvailable ){
+					//look up if token is used
+					if( is_object($tokenCheck) && $tokenCheck->isValid() ){
 						$tokenOK = 1;
 					}else{
-						throw new Exception('token invalid');
 						$tokenOK = 0;
 					}
 				
@@ -268,7 +278,7 @@
 			
 			CREATE TABLE  `btoken` (
 			`id` INT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY,
-			`token` VARCHAR( 45 ),
+			`token` VARCHAR( 155 ),
 			`used` INTEGER,
 			`expiry` VARCHAR( 45 )
 			);
@@ -285,6 +295,24 @@
 		function __construct($databaseConnection=null){
 			$this->connection = $databaseConnection;
 		}
+		
+		/*Getters and Setters*/
+		function getId(){
+			return $this->id;
+		}
+
+		function setId($id){
+			$this->id = $id;
+		}
+
+		function getConnection(){
+			return $this->connection;
+		}
+
+		function setConnection($connection){
+			$this->connection = $connection;
+		}
+
 		
 		function getToken(){
 			return $this->token;
@@ -312,7 +340,11 @@
 		
 		function save(){
 			$id = $this->getId();
+			
+			$this->setToken( md5( time()."tokenGenerator!" ) );
 			$token = $this->getToken();
+			
+			
 			$used = $this->getUsed();
 			$expiry = $this->getExpiry();
 			if( $this->connection ){
@@ -385,6 +417,17 @@
 			}
 		}
 		
+		function isValid(){
+			if( $this->id != "" && $this->getUsed() == 0 && ( time() < $this->getExpiry() ) ){
+				$this->delete();
+				return true;
+			}else{
+				$this->delete();
+				return false;
+			}
+		}
+		
+		
 		
 		
 		function clearExpiredTokens(){
@@ -406,9 +449,9 @@
 	
 			CREATE TABLE  `bkeyin` (
 			`id` INT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY,
-			`pubKey` VARCHAR( 45 ),
-			`privKey` VARCHAR( 45 ),
-			`name` VARCHAR( 45 )
+			`pubKey` VARCHAR( 80 ),
+			`privKey` VARCHAR( 80 ),
+			`name` VARCHAR( 75 )
 			);
 		**/
 		
