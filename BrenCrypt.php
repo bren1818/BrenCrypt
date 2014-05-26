@@ -1,5 +1,5 @@
 <?php
-	class BrenCrypt(){
+	class BrenCrypt{
 		private $key;
 		private $iv;
 		
@@ -61,7 +61,7 @@
 				
 				//this should be done last
 				if(  $this->enableKeys ){
-					$package[] = array("signature" => hash_hmac('ripemd160',$package,$this->privateKey);
+					$package[] = array("signature" => hash_hmac('ripemd160',$package,$this->privateKey) );
 				}
 				
 				return $package;
@@ -143,7 +143,7 @@
 				
 				if( $tokenOK && $unlocked && $withinLimit && $decrypted ){
 					if( $this->enableEncryption == true){
-						$payload = trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $this->key, base64_decode($input["payload"]), MCRYPT_MODE_ECB, $this->iv))
+						$payload = trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $this->key, base64_decode($input["payload"]), MCRYPT_MODE_ECB, $this->iv));
 					}else{
 						$payload = $input["payload"];
 					}
@@ -250,7 +250,7 @@
 	
 	
 	
-	class BToken(){
+	class BToken{
 		/***
 			token, v
 			used, i
@@ -358,7 +358,7 @@
 		function load($id = null){
 			if( $this->connection ){
 				if( $id == null && $this->getToken() != ""){
-					$id = $this->getToken()();
+					$id = $this->getToken();
 				}
 				/*Perform Query*/
 				if( $id != "" ){
@@ -388,7 +388,7 @@
 		
 	}
 	
-	class BKeyin(){
+	class BKeyin{
 		/**
 			pubKey, v
 			privKey, v
