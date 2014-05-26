@@ -11,7 +11,8 @@
 		private $publicKey;
 		private $privateKey;
 		private $enableTokens;
-		//private $token;
+		private $tokenLifeSeconds;
+		
 		
 		private $connection;
 		private $throwExceptions;
@@ -26,6 +27,7 @@
 			$this->throwExceptions = false;
 			
 			$this->iv = mcrypt_create_iv(32);
+			$this->tokenLifeSeconds = 300;
 		}
 		
 		function encrypt($input) {
@@ -52,7 +54,7 @@
 				if( $this->enableTokens == true ){
 					$token = new BToken($this->connection);
 					$token->setUsed(0);
-					$token->setExpiry( time() + 300 ); // 5 mins from now
+					$token->setExpiry( time() + $this->tokenLifeSeconds ); // 5 mins from now
 					if( $token->save() > 0 ){
 						$this->token = $token->getToken();
 						$package["token"] = $token->getToken() ;
@@ -71,7 +73,7 @@
 				
 				//this should be done last
 				if(  $this->enableKeys ){
-					$package["signature"] = hash_hmac('ripemd160',$package,$this->privateKey);
+					$package["signature"] = hash_hmac('ripemd160', serialize($package), $this->privateKey);
 				}
 				
 				return $package;
@@ -123,11 +125,18 @@
 					$pubKey = $input["pubKey"];
 					$privKey = ""; //call lookup function
 					
+					$key = new BKeyin($this->connection);
+					$key = $key->loadByPublicKey( $pubKey );	
+				    $privKey = $key->getPrivKey(); 
 					
-					if( hash_hmac('ripemd160',$checkD,$privKey) == $signature ){
+					
+					if( hash_hmac('ripemd160',serialize($checkD),$privKey) == $signature ){
 						$unlocked = 1;
 					}else{
-						throw new Exception('signature invalid');
+						//throw new Exception('signature invalid');
+						
+						//key mismatch
+						$unlocked = 0;
 					}
 				}else{
 					$unlocked = 1;
@@ -294,6 +303,7 @@
 		/*Constructor*/
 		function __construct($databaseConnection=null){
 			$this->connection = $databaseConnection;
+			
 		}
 		
 		/*Getters and Setters*/

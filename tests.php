@@ -101,4 +101,26 @@
 	$decrypted = $bCrypt->decrypt( $encrypted );
 	echo "<p>Payload: ".$decrypted."</p>";
 	
+	echo "<h1>With Public / Private Key</h1>";
+	$bCrypt->setEnableKeys();
+	$bCrypt->setPublicKey("test");
+	$bCrypt->setPrivateKey("6b4f88c108845942fb344fc595e907a0");
+	$encrypted = $bCrypt->encrypt( $msg );
+	
+	pa( $encrypted );
+	
+	echo "<p>Test Decrypt</p>";
+	
+	$decrypted = $bCrypt->decrypt( $encrypted );
+	
+	echo "<p>Payload: ".$decrypted."</p>";
+	
+	
+	echo "<p>Test Decrypt with invalid private key</p>";
+	$bCrypt->setPrivateKey("6b4f88c108845942fb344fc595e90invalida0");
+	$encrypted = $bCrypt->encrypt( $msg );
+	
+	$decrypted = $bCrypt->decrypt( $encrypted );
+	
+	echo "<p>Payload: ".$decrypted."</p>";
 ?>
