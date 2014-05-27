@@ -75,8 +75,8 @@
 	echo "<p>Test Decrypt</p>";
 	$decrypted = $bCrypt->decrypt( $encrypted );
 	echo "<p>Payload: ".$decrypted."</p>";
-	echo "<p>Faking Latency of 5s [curtime = ".time()."] [packet time = ".($encrypted["signed"] - 5 )." </p>";
-	$encrypted["signed"] = ($encrypted["signed"] - 5 );
+	echo "<p>Faking Latency of 5s [curtime = ".time()."] [packet time = ".($encrypted["ts"] - 5 )." </p>";
+	$encrypted["ts"] = ($encrypted["ts"] - 5 );
 	pa( $encrypted );
 	
 	$decrypted = $bCrypt->decrypt( $encrypted );

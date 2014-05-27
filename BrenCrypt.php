@@ -42,13 +42,22 @@
 				/*Construct a "package" to send */
 				
 				$package = array();
+				$sanity = "";
+				//calculate entire sanity
+				
 				
 				if(  $this->enableTimeout == true ){
-					$package["signed"] = time() ;
+					$package["ts"] = time() ;
+					$sanity.="1";
+				}else{
+					$sanity.="0";
 				}
 				
 				if(  $this->enableKeys ){
 					$package["pubKey"] = $this->publicKey ;
+					$sanity.="1";
+				}else{
+					$sanity.="0";
 				}
 				
 				if( $this->enableTokens == true ){
@@ -62,17 +71,28 @@
 					}else{
 						//error cannot generate token
 					}
-					
+					$sanity.="1";
+				}else{
+					$sanity.="0";
 				}
 				
 				if( $this->enableEncryption == true ){
-					$package["payload"] = base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $this->key, $input, MCRYPT_MODE_ECB, $this->iv)) ;
+					$sanity.="1";
+					
+					//change encryption based on sanity
+					//echo $sanity;
+					
+					
+					$package["payload"] = base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, md5($this->key.$sanity), $input, MCRYPT_MODE_ECB, $this->iv)) ;
 				}else{
 					$package["payload"] = $input ;
 				}
 				
 				//this should be done last
 				if(  $this->enableKeys ){
+					//add sanity
+					
+					
 					$package["signature"] = hash_hmac('ripemd160', serialize($package), $this->privateKey);
 				}
 				
@@ -96,8 +116,12 @@
 				$decrypted = 1;
 				$payload = null;
 				
+				$sanity  = "";
+				//calculate entire string first
+				
+				
 				if( $this->enableTimeout == true ){
-					$signed  = $input["signed"]; //signing time
+					$signed  = $input["ts"]; //signing time
 					$currentTime = time();
 					$difference = ($currentTime - $signed);
 					
@@ -106,14 +130,14 @@
 							//packet from the future?
 						}
 						
-					
-					
 						$withinLimit = 1;
 					}else{
 						//throw new Exception('package time outside time limit');
 					}
+					$sanity.="1";
 				}else{
 					$withinLimit = 1;
+					$sanity.="0";
 				}
 				
 				if( $this->enableKeys ){		
@@ -129,7 +153,7 @@
 					$key = $key->loadByPublicKey( $pubKey );	
 				    $privKey = $key->getPrivKey(); 
 					
-					
+					//append sanity?
 					if( hash_hmac('ripemd160',serialize($checkD),$privKey) == $signature ){
 						$unlocked = 1;
 					}else{
@@ -138,8 +162,10 @@
 						//key mismatch
 						$unlocked = 0;
 					}
+					$sanity.="1";
 				}else{
 					$unlocked = 1;
+					$sanity.="0";
 				}
 				
 				if( $this->enableTokens == true ){
@@ -154,9 +180,10 @@
 					}else{
 						$tokenOK = 0;
 					}
-				
+					$sanity.="1";
 				}else{
 					$tokenOK = 1;
+					$sanity.="0";
 				}
 				
 				if( $this->enableEncryption == true){
@@ -166,17 +193,23 @@
 						$decrypted = 0;
 						//throw new Exception('prior tests failed. Decryption disabled');
 					}
+					$sanity.="1";
+				}else{
+					$decrypted = 1;
+					$sanity.="0";
 				}
 				
 				if( $tokenOK && $unlocked && $withinLimit && $decrypted ){
 					if( $this->enableEncryption == true){
-						$payload = trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $this->key, base64_decode($input["payload"]), MCRYPT_MODE_ECB, $this->iv));
+						$payload = trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, md5($this->key.$sanity), base64_decode($input["payload"]), MCRYPT_MODE_ECB, $this->iv));
 					}else{
 						$payload = $input["payload"];
 					}
 				}else{
 					//could set the payload to a message
 				}
+				
+				//echo $sanity;
 				
 				return $payload;
 				
