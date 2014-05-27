@@ -17,6 +17,9 @@
 		private $connection;
 		private $throwExceptions;
 		
+		private $errors;
+		private $errorCount;
+		
 		
 		function __construct($conn = null) {
 			$this->enableEncryption = true;
@@ -28,13 +31,17 @@
 			
 			$this->iv = mcrypt_create_iv(32);
 			$this->tokenLifeSeconds = 300;
+			$this->errors = array();
+			$this->errorCount = 0;
 		}
 		
 		function encrypt($input) {
 			if( $this->enableEncryption == true && $this->enableTimeout == false && $this->enableKeys == false && $this->enableTokens == false){
 				/*Just simple encryption */
 				if( $this->key == "" || strlen($this->key) < 5 ){
-					 throw new Exception('Key too short or empty');
+					$this->errorCount++;
+					$this->addError("Encryption Key too short or empty");
+					//throw new Exception('Key too short or empty');
 				}else{
 					return base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, $this->key, $input, MCRYPT_MODE_ECB, $this->iv));
 				}
@@ -44,20 +51,18 @@
 				$package = array();
 				$sanity = "";
 				//calculate entire sanity
+				if( $this->enableTimeout == true ){ $sanity.="1"; }else{ $sanity.="0"; }
+				if( $this->enableKeys == true ){ $sanity.="1"; }else{ $sanity.="0"; }
+				if( $this->enableTokens == true ){ $sanity.="1"; }else{ $sanity.="0"; }
+				if( $this->enableEncryption == true){ $sanity.="1"; }else{ $sanity.="0"; }
 				
 				
 				if(  $this->enableTimeout == true ){
 					$package["ts"] = time() ;
-					$sanity.="1";
-				}else{
-					$sanity.="0";
 				}
 				
-				if(  $this->enableKeys ){
+				if( $this->enableKeys ){
 					$package["pubKey"] = $this->publicKey ;
-					$sanity.="1";
-				}else{
-					$sanity.="0";
 				}
 				
 				if( $this->enableTokens == true ){
@@ -70,30 +75,24 @@
 						
 					}else{
 						//error cannot generate token
+						$this->errorCount++;
+						$this->addError("Cannot generate token.");
 					}
-					$sanity.="1";
-				}else{
-					$sanity.="0";
 				}
 				
 				if( $this->enableEncryption == true ){
-					$sanity.="1";
-					
-					//change encryption based on sanity
-					//echo $sanity;
-					
-					
-					$package["payload"] = base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, md5($this->key.$sanity), $input, MCRYPT_MODE_ECB, $this->iv)) ;
+					if(  $this->enableTimeout == true ){
+						$package["payload"] = base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, md5($this->key.$sanity.$package["ts"]), $input, MCRYPT_MODE_ECB, $this->iv)) ;
+					}else{
+						$package["payload"] = base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256, md5($this->key.$sanity), $input, MCRYPT_MODE_ECB, $this->iv)) ;
+					}
 				}else{
 					$package["payload"] = $input ;
 				}
 				
 				//this should be done last
 				if(  $this->enableKeys ){
-					//add sanity
-					
-					
-					$package["signature"] = hash_hmac('ripemd160', serialize($package), $this->privateKey);
+					$package["signature"] = hash_hmac('ripemd160', serialize($package), $this->privateKey.$sanity);
 				}
 				
 				return $package;
@@ -104,7 +103,9 @@
 			if( $this->enableEncryption == true && $this->enableTimeout == false && $this->enableKeys == false && $this->enableTokens == false){
 				/*Just simple Decrypt*/
 				if( $this->key == "" || strlen($this->key) < 5 ){
-					throw new Exception('Key too short or empty');
+					//throw new Exception('Key too short or empty');
+					$this->errorCount++;
+					$this->addError("Decryption Key too short or empty");
 				}else{
 					return trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, $this->key, base64_decode($input), MCRYPT_MODE_ECB, $this->iv));
 				}
@@ -118,6 +119,11 @@
 				
 				$sanity  = "";
 				//calculate entire string first
+				//-timeout, keys, tokens, encryption
+				if( $this->enableTimeout == true ){ $sanity.="1"; }else{ $sanity.="0"; }
+				if( $this->enableKeys == true ){ $sanity.="1"; }else{ $sanity.="0"; }
+				if( $this->enableTokens == true ){ $sanity.="1"; }else{ $sanity.="0"; }
+				if( $this->enableEncryption == true){ $sanity.="1"; }else{ $sanity.="0"; }
 				
 				
 				if( $this->enableTimeout == true ){
@@ -128,16 +134,23 @@
 					if( $difference >= 0 && $difference < $this->timeout ){
 						if( $difference < 0 ){
 							//packet from the future?
+							$this->errorCount++;
+							
+							$this->addError("Packet has future time stamp.");
+							
 						}
 						
 						$withinLimit = 1;
 					}else{
 						//throw new Exception('package time outside time limit');
+						$this->errorCount++;
+				
+						$this->addError("Packet arrived outside of acceptable time range.");
+						
 					}
-					$sanity.="1";
+					
 				}else{
-					$withinLimit = 1;
-					$sanity.="0";
+					$withinLimit = 1;	
 				}
 				
 				if( $this->enableKeys ){		
@@ -154,18 +167,18 @@
 				    $privKey = $key->getPrivKey(); 
 					
 					//append sanity?
-					if( hash_hmac('ripemd160',serialize($checkD),$privKey) == $signature ){
+					if( hash_hmac('ripemd160',serialize($checkD),$privKey.$sanity) == $signature ){
 						$unlocked = 1;
 					}else{
-						//throw new Exception('signature invalid');
-						
+						$this->errorCount++;
+						$this->addError("Private Key could not be located or was mismatched. Package signing could be incorrect");
 						//key mismatch
 						$unlocked = 0;
 					}
-					$sanity.="1";
+					
 				}else{
 					$unlocked = 1;
-					$sanity.="0";
+					
 				}
 				
 				if( $this->enableTokens == true ){
@@ -179,11 +192,11 @@
 						$tokenOK = 1;
 					}else{
 						$tokenOK = 0;
+						$this->errorCount++;
+						$this->addError("Token not found or already used.");
 					}
-					$sanity.="1";
 				}else{
 					$tokenOK = 1;
-					$sanity.="0";
 				}
 				
 				if( $this->enableEncryption == true){
@@ -191,25 +204,30 @@
 						$decrypted = 1;
 					}else{
 						$decrypted = 0;
-						//throw new Exception('prior tests failed. Decryption disabled');
+						$this->errorCount++;
+						$this->addError("Something mismatched cannot decrypt.");
 					}
-					$sanity.="1";
 				}else{
 					$decrypted = 1;
-					$sanity.="0";
 				}
 				
 				if( $tokenOK && $unlocked && $withinLimit && $decrypted ){
 					if( $this->enableEncryption == true){
-						$payload = trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, md5($this->key.$sanity), base64_decode($input["payload"]), MCRYPT_MODE_ECB, $this->iv));
+						if(  $this->enableTimeout == true ){
+							$payload = trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, md5($this->key.$sanity.$input["ts"]), base64_decode($input["payload"]), MCRYPT_MODE_ECB, $this->iv));
+						}else{
+							$payload = trim(mcrypt_decrypt(MCRYPT_RIJNDAEL_256, md5($this->key.$sanity), base64_decode($input["payload"]), MCRYPT_MODE_ECB, $this->iv));
+						}
 					}else{
 						$payload = $input["payload"];
 					}
 				}else{
 					//could set the payload to a message
+					$this->errorCount++;
+					
+					//$this->addError("Something mismatched cannot decrypt.");
+					
 				}
-				
-				//echo $sanity;
 				
 				return $payload;
 				
@@ -307,6 +325,25 @@
 		}
 		
 		
+		function getErrors(){
+			return $this->errors;
+		}
+
+		function setErrors($errors){
+			$this->errors = $errors;
+		}
+
+		function getErrorCount(){
+			return $this->errorCount;
+		}
+
+		function setErrorCount($errorCount){
+			$this->errorCount = $errorCount;
+		}
+		
+		function addError($error){
+			array_push($this->errors, $error);
+		}
 		
 	}
 	

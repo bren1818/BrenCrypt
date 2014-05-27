@@ -58,6 +58,10 @@
 	echo "<p>Decrypting: &ldquo;".$encrypted."&rdquo;</p>";
 	$bCrypt->setKey("WrongKey");
 	echo "<p>With <b>wrong</b> key: ".$bCrypt->decrypt( $encrypted )."</p>";
+	
+	
+	
+	
 	$bCrypt->setKey($key);
 	echo "<p>With <b>correct</b> key: ".$bCrypt->decrypt( $encrypted )."</p>";
 
@@ -79,8 +83,12 @@
 	$encrypted["ts"] = ($encrypted["ts"] - 5 );
 	pa( $encrypted );
 	
+	
 	$decrypted = $bCrypt->decrypt( $encrypted );
 	echo "<p>Payload: ".$decrypted."</p>";
+	pa( $bCrypt->getErrors() );
+	
+	$bCrypt->setErrors( array() );
 	
 	echo "<hr />";
 	
@@ -100,6 +108,11 @@
 	echo "<p>Attempting <b>Second</b> Use of token.</p>";
 	$decrypted = $bCrypt->decrypt( $encrypted );
 	echo "<p>Payload: ".$decrypted."</p>";
+	
+	pa( $bCrypt->getErrors() );
+	
+	$bCrypt->setErrors( array() );
+	
 	
 	echo "<h1>With Public / Private Key</h1>";
 	$bCrypt->setEnableKeys();
@@ -123,4 +136,7 @@
 	$decrypted = $bCrypt->decrypt( $encrypted );
 	
 	echo "<p>Payload: ".$decrypted."</p>";
+	pa( $bCrypt->getErrors() );
+	
+	$bCrypt->setErrors( array() );
 ?>
