@@ -129,7 +129,7 @@
 				if( $this->enableTimeout == true ){
 					$signed  = $input["ts"]; //signing time
 					$currentTime = time();
-					$difference = ($currentTime - $signed);
+					$difference = abs($currentTime - $signed);
 					
 					if( $difference >= 0 && $difference < $this->timeout ){
 						if( $difference < 0 ){
